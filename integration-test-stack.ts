@@ -1,6 +1,8 @@
+import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
@@ -32,10 +34,10 @@ export class IntegrationTestStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IntegrationTestStackProps) {
     super(scope, id, props);
 
-    const integrationTestLambda = new Function(this, 'IntegrationTestLambda', {
+    const integrationTestLambda = new NodejsFunction(this, 'IntegrationTestLambda', {
       runtime: Runtime.NODEJS_18_X,
-      handler: 's3-dynamodb-test.handler',
-      code: Code.fromAsset('pipeline/lib/integration-test'),
+      handler: 'handler',
+      entry: path.join(__dirname, 'integration-test/s3-dynamodb-test.ts'),
       environment: {
         TABLE_NAME: props.tableName,
         BUCKET_NAME: props.bucketName,
