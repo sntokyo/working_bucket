@@ -1,13 +1,3 @@
-import { Construct } from "constructs";
-import { Stack, StackProps } from "aws-cdk-lib";
-import { CodeStarConnectionsSourceAction, ManualApprovalAction } from "aws-cdk-lib/aws-codepipeline-actions"; 
-import { Pipeline, Artifact } from "aws-cdk-lib/aws-codepipeline";
-import { CdkBootstrapStep } from "../classes/cdk-bootstrap-step";
-import { CdkDeployStep } from "../classes/cdk-deploy-step";
-import { CdkDiffStep } from "../classes/cdk-diff-step";
-import { Topic } from "aws-cdk-lib/aws-sns";
-import { Bucket } from "aws-cdk-lib/aws-s3";
-
 /**
  * Properties to create pipeline stack
  *
