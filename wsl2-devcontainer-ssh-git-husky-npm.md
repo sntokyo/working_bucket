@@ -33,4 +33,8 @@ npm install
 git config user.name 
 git config user.email 
 ```
+Ref:
+https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials
+https://zenn.dev/nayushi/articles/5d577c93e03a9b
+
 7. git commit 時huskyも動作する
