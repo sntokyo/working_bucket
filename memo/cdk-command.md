@@ -117,3 +117,5 @@ cdk synth -c env=dev --all
 cdk deploy -c env=dev --all
 ```
 説明: 指定された環境 (env=dev) で、すべてのスタックをデプロイします。
+
+Remark: env の例として、dev, stg, prd, 任意の名前等。
