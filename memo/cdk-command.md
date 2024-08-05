@@ -26,6 +26,8 @@ cdk init sample-app --language typescript
 ```
 https://catalog.workshops.aws/typescript-and-cdk-for-beginner/ja-JP/40-cdk-introduction/10-create-project/10-cdk-init
 
+
+## ディレクトリ構造
 ```
     bin/cdk-workshop.ts
 ```
