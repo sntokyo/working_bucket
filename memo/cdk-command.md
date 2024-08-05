@@ -1,8 +1,10 @@
 
+# CDK command ref
+
 https://catalog.workshops.aws/typescript-and-cdk-for-beginner/ja-JP
 
 
-## CDK スタックの削除
+## 0. CDK スタックの削除
 
 AWS CloudFormation コンソールで削除するか、cdk destroy を実行してください。
 
@@ -10,7 +12,7 @@ AWS CloudFormation コンソールで削除するか、cdk destroy を実行し�
 cdk destroy
 ```
 
-## cdk init
+## 1. cdk init
 プロジェクトディレクトリの作成
 
 空のディレクトリを作成し、カレントディレクトリを変更します。
@@ -27,7 +29,7 @@ cdk init sample-app --language typescript
 https://catalog.workshops.aws/typescript-and-cdk-for-beginner/ja-JP/40-cdk-introduction/10-create-project/10-cdk-init
 
 
-## ディレクトリ構造
+### ディレクトリ構造
 ```
     bin/cdk-workshop.ts
 ```
@@ -67,7 +69,7 @@ Git と npm 用のファイルです。ソースコードの管理に含める/�
 https://catalog.workshops.aws/typescript-and-cdk-for-beginner/ja-JP/40-cdk-introduction/10-create-project/20-structure
 
 
-## cdk synth
+## 2. cdk synth
 https://catalog.workshops.aws/typescript-and-cdk-for-beginner/ja-JP/40-cdk-introduction/10-create-project/30-cdk-synth
 
 AWS CDK アプリケーションは、事実上、コードを使用したインフラストラクチャの定義にすぎません。CDK アプリケーションが実行されると、アプリケーションで定義されたスタックごとに AWS CloudFormation テンプレートが生成（CDK 用語では「合成」）されます。
@@ -77,7 +79,7 @@ CDK アプリを合成するには、cdk synth コマンドを使用します。
 cdk synth
 ```
 
-## cdk deploy
+## 3. cdk deploy
 https://catalog.workshops.aws/typescript-and-cdk-for-beginner/ja-JP/40-cdk-introduction/10-create-project/40-cdk-deploy
 
 ### 環境のブートストラップ  
