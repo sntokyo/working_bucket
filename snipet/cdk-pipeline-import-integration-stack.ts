@@ -18,6 +18,12 @@ export class CdkPipelineStack extends cdk.Stack {
     const buildOutput = new codepipeline.Artifact();
     const deployOutput = new codepipeline.Artifact();
 
+    // Manual Approval Action for triggering the pipeline manually
+    const manualApprovalAction = new codepipeline_actions.ManualApprovalAction({
+      actionName: 'ManualApproval',
+    });
+
+    // GitHubソースアクションの定義
     const sourceAction = new codepipeline_actions.GitHubSourceAction({
       actionName: 'GitHub_Source',
       owner: 'your-github-username',
@@ -37,7 +43,7 @@ export class CdkPipelineStack extends cdk.Stack {
         phases: {
           install: {
             commands: [
-              'cd XYZ', 
+              'cd XYZ',
               'npm install',
             ],
           },
@@ -75,8 +81,12 @@ export class CdkPipelineStack extends cdk.Stack {
       pipelineName: 'MyPipeline',
       stages: [
         {
+          stageName: 'ManualApproval',
+          actions: [manualApprovalAction], // 手動承認をソースステージに追加
+        },
+        {
           stageName: 'Source',
-          actions: [sourceAction],
+          actions: [sourceAction], // 手動承認後にGitHubからソースを取得
         },
         {
           stageName: 'Build',
