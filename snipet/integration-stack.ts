@@ -34,7 +34,7 @@ interface CdkDevOpsPipelineStackProps extends StackProps {
  * @class InfraStack
  * @extends {Stack}
  */
-export class InfraStack extends Stack {
+export class IntegrationTestStack extends Stack {
   constructor(scope: Construct, id: string, props: CdkDevOpsPipelineStackProps) {
     super(scope, id, props);
     
