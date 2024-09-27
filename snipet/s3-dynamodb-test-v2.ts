@@ -147,11 +147,7 @@ export const handler = async (event: any): Promise<void> => {
         // const { storedat: _dataStoredat, updatedat: _dataUpdatedat, ...dataItemToCompare } = data.Item;
         const storedItemToCompare = omit(storedItem, ['storedat', 'updatedat']);
         const dataItemToCompare = omit(data.Item, ['storedat', 'updatedat']);
-        
-        const sortedStoredItem = sortObjectKeys(storedItemToCompare);
-        const sortedDataItem = sortObjectKeys(dataItemToCompare);
-
-        const same = JSON.stringify(sortedStoredItem) === JSON.stringify(sortedDataItem);
+        const same = compare(storedItemToCompare, dataItemToCompare); // just-compareで比較        
 
         if (same) {
           console.log(`Data for ${filenameWithoutExtension} matches stored data.`);
