@@ -1,0 +1,41 @@
+{
+  "app":"npx ts-node --prefer-ts-exts bin/integration-test-stacks.ts",
+  "watch":{
+    "include":["**"],
+    "exlude":["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "package.json", "package-lock.json","yarn.lock", "node_modules", "test"]
+  },
+  "requireApproval":"any-charge",
+  "context":{
+    "@aws-cdk/aws-lambda:recognizeLayerVersion":true,
+    "dev":{
+      "loglevel": "debug",
+      "region":"us-west-2",
+      "accountNumber":"123456789012",
+      "s3BucketName": "my-bucket",
+      "ddbBinarycatalogTableName": "my-table",
+      "ddbDatacatalogTableName": "my-data-table",
+      "replicationBucketName": "my-replication-bucket",
+      "destBucketNameA": "dest-bucket-a-dev"
+    },
+    "prd":{
+      "loglevel": "info",
+      "region":"us-west-2",
+      "accountNumber":"123456789012",
+      "s3BucketName": "my-bucket",
+      "ddbBinarycatalogTableName": "my-table",
+      "ddbDatacatalogTableName": "my-data-table",
+      "replicationBucketName": "my-replication-bucket",
+      "destBucketNameA": "dest-bucket-a-prd"
+    },
+    "stg":{
+      "loglevel": "info",
+      "region":"us-west-2",
+      "accountNumber":"123456789012",
+      "s3BucketName": "my-bucket",
+      "ddbBinarycatalogTableName": "my-table",
+      "ddbDatacatalogTableName": "my-data-table",
+      "replicationBucketName": "my-replication-bucket",
+      "destBucketNameA": "dest-bucket-a-stg"
+    }
+  }
+}

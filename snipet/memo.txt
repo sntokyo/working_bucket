@@ -1,0 +1,219 @@
+project-root/pipeline/lib/infra-pipeline-stack.ts
+
+import { Construct } from "constructs";
+import { Stack, StackProps } from "aws-cdk-lib";
+import { CodeStarConnectionsSourceAction, ManualApprovalAction } from "aws-cdk-lib/aws-codepipeline-actions"; 
+import { Pipeline, Artifact, PipelineType } from "aws-cdk-lib/aws-codepipeline";
+import { CdkBootstrapStep } from "../classes/cdk-bootstrap-step";
+import { CdkDeployStep } from "../classes/cdk-deploy-step";
+import { CdkDiffStep } from "../classes/cdk-diff-step";
+import{ Topic } from "aws-cdk-lib/aws-sns";
+import { Bucket } from "aws-cdk-lib/aws-s3";
+
+/**
+  * Properties to create devops account cdk pipline.
+  *
+  * @interface CdkDevOpsPipelineStackProps
+  * @extends {StackProps}
+  */
+interface CdkDevOpsPipelineStackProps extends StackProps {
+  accountNumber: string;
+  region: string;
+  environment: string;
+  githubBranch: string;
+  stackName: string;
+  targetStacks: string[];
+  resourcesNamePrefix: string;
+  githubConnectionArn: string;
+  guthubOwner: string;
+  githubRepository: string;
+  triggerOnPush: boolean;
+  approvalNotifyTopic: Topic;
+  nodeVersion: string;
+  deploymentType: string;
+  artifactBucket: Bucket;
+}
+
+/**
+  * InfraStack to create cdk pipeline to deploy infra.
+  *
+  * @export
+  * @class CdkDevOpsPipelineStack
+  * @extends {Stack}
+  */
+export class InfraStack extends Stack {
+  constructor(scope: Construct, id: string, props: CdkDevOpsPipelineStackProps) {
+    super(scope, id, props);
+    const sourceOutput = new Artifact();
+    console.log("id");
+    for (const targetStack of props.targetStacks){
+      if (targetStack === "infra") {
+        continue;
+      }
+      // const stageslist = [];
+      new Pipeline(this, id + "-" + targetStack, {
+        pipelineName: props.resourcesNamePrefix + "-" + targetStack + "-pipeline-infra-" + props.environment,
+        restartExecutionOnUpdate: true,
+        // enableKeyRotation: true,
+        crossAccountKeys: false,
+        artifactBucket: props.artifactBucket,
+        pipelineType: PipelineType.V2,
+        stages: [
+          {
+            stageName: "Source",
+            actions: [
+              new CodeStarConnectionsSourceAction({
+                actionName: "GitHub",
+                owner: props.guthubOwner,
+                branch: props.githubBranch,
+                repo: props.githubRepository,
+                output: sourceOutput,
+                connectionArn: props.githubConnectionArn,
+                triggerOnPush: props.triggerOnPush,
+              }),
+            ],
+          },
+          {
+            stageName: "Build",
+            actions: [
+              new CdkBootstrapStep(this, "PipelineBootstrap-" + targetStack, {
+                accountId: props.accountNumber,
+                environment: props.environment,
+                input: sourceOutput,
+                runOrder: 1,
+                actionName: "cdk-bootstrap",
+                region: props.region,
+                stackName: targetStack,
+                projectName: props.resourcesNamePrefix + "-" + targetStack + "-codebuild-cdk-bootstrap" + props.environment,
+                nodeVersion: props.nodeVersion,
+                deploymentType: props.deploymentType,
+              }),
+              new CdkDiffStep(this, "PipelineDiff-" + targetStack, {
+                accountId: props.accountNumber,
+                environment: props.environment,
+                input: sourceOutput,
+                runOrder: 2,
+                actionName: "cdk-diff",
+                region: props.region,
+                stackName: targetStack,
+                projectName: props.resourcesNamePrefix + "-" + targetStack + "-codebuild-cdk-diff-pipeline-" + props.environment,
+                nodeVersion: props.nodeVersion,
+                deploymentType: props.deploymentType,
+                variablesNamespace: "DIFF_VARIABLES",
+                variablesEnvName: "DIFF_STATUS",
+              }),
+            ],
+          },
+          // ここでセキュリティスキャンのステップを入れたい感ある。
+          {
+            stageName: "Deploy",
+            actions: [
+              new ManualApprovalAction({
+                actionName: "manual-approval-to-deploy-pipeline",
+                notificationTopic: props.approvalNotifyTopic,
+                runOrder: 1,
+                additionalInformation: "#{DIFF_VARIABLES.DIFF_STATUS}",
+              }),
+              new CdkDeployStep(this, "PipelineDeploy-" + targetStack, {
+                accountId: props.accountNumber,
+                environment: props.environment,
+                input: sourceOutput,
+                runOrder: 2,
+                actionName: "cdk-deploy",
+                region: props.region,
+                stackName: targetStack,
+                projectName:
+                  props.resourcesNamePrefix + "-" + targetStack + "-codebuild-cdk-deploy-pipeline-" + props.environment,
+                nodeVersion: props.nodeVersion,
+                deploymentType: props.deploymentType,
+              }),
+            ],
+          },
+        ],
+      });
+    }
+  }
+}
+
+
+
+project-root/integration-test/lib/integration-test-stack.ts
+
+import { Construct } from "constructs";
+import { Stack, StackProps } from "aws-cdk-lib";
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as path from 'path';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { Topic } from "aws-cdk-lib/aws-sns";
+import { Bucket } from "aws-cdk-lib/aws-s3";
+
+/**
+ * Properties to create devops account cdk pipeline.
+ *
+ * @interface CdkDevOpsPipelineStackProps
+ * @extends {StackProps}
+ */
+interface CdkDevOpsPipelineStackProps extends StackProps {
+  accountNumber: string;
+  region: string;
+  environment: string;
+  stackName: string;
+  targetStacks: string[];
+  resourcesNamePrefix: string;
+  approvalNotifyTopic: Topic;
+  nodeVersion: string;
+  artifactBucket: Bucket;
+}
+
+/**
+ * InfraStack to create resources for manual test execution.
+ *
+ * @export
+ * @class InfraStack
+ * @extends {Stack}
+ */
+export class IntegrationTestStack extends Stack {
+  constructor(scope: Construct, id: string, props: CdkDevOpsPipelineStackProps) {
+    super(scope, id, props);
+    
+    // Define IAM policies
+    const dynamoDbPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["dynamodb:*"],
+      resources: [`arn:aws:dynamodb:${props.region}:${props.accountNumber}:table/*`],
+    });
+
+    const s3Policy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["s3:*"],
+      resources: [`arn:aws:s3:::${props.environment}-001*`],
+    });
+
+    // Define the test Lambda function
+    const testLambdaFunction = new NodejsFunction(this, "TestLambdaFunction", {
+      entry: path.join(__dirname, "../lambda/test-lambda"),
+      handler: "handler",
+      runtime: Runtime.NODEJS_18_X,
+      environment: {
+        TABLE_NAME: "test-table",
+        BUCKET_NAME: `${props.environment}-001`,
+      },
+      initialPolicy: [dynamoDbPolicy, s3Policy],
+    });
+
+    // Create a CloudWatch Event rule to trigger the Lambda function manually
+    new Rule(this, 'ManualTriggerRule', {
+      schedule: Schedule.rate(Duration.minutes(5)), // Modify as needed
+      targets: [new LambdaFunction(testLambdaFunction)],
+    });
+  }
+}
+
+
+があります。
+project-root/pipeline/lib/infra-pipeline-stack.tsでproject-root/integration-test/lib/integration-test-stack.ts
+を読み込んで、test工程をdeployの後に追加したい。どうコードを書けば良いですか
+また、codepipeline_actions.LambdaInvokeActionの記述がないんだけどテスト工程のラムダは実行されますか？テストラムダはproject-root/integration-test/lib/testlambda.ts にあるとします。

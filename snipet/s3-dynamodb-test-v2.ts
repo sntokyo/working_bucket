@@ -4,6 +4,7 @@ import * as path from "path";
 import omit from 'just-omit';
 import compare from "just-compare"; // just-compareをインポート
 
+
 // AWSサービスのインスタンスを作成
 const s3 = new AWS.S3();
 const docClient = new AWS.DynamoDB.DocumentClient();
@@ -19,50 +20,48 @@ const S3_DIR = "s3dir1"; // S3ディレクトリ名を指定（全ての環境�
 interface DynamoDBItem {
   pk: string;
   sk: string;
-  author: string;
   code: string;
-  content: string;
   datetime: string;
   key: string;
   origkey: string;
-  status: string;
   storedat?: string;
-  title: string;
   updatedat?: string;
   value: string;
 }
 
+// テストファイルリスト
+const uploadS3FileList = [
+  "XXXX63_RTGF_010000_202409060000001_001_99999.send",
+];
+
+
 // 事前に保持しているデータ(DynamoDBに入っていると期待される値)
 const storedData: { [key: string]: DynamoDBItem } = {
-  XXXX50_RJTD_010000_02_202409260000001_001_99999: {
-    pk: "XXXX50_RJTD_010000_202409260000001_001_99999",
+  XXXX63_RTGF_010000_202409060000001_001_99999: {
+    pk: "XXXX63_RTGF_010000_202409060000001_001_99999",
     sk: "info",
-    code: "XXXX50",
-    datetime: "2023-07-01T00:10:22Z",
-    key: "XXXX50/XXXX50_RJTD_010000_202409260000001_001_99999.xml",
-    origkey: "denbun/XXXX50_RJTD_010000_202409260000001_001_99999.send",
-    status: "通常",
+    code: "XXXX63",
+    datetime: "202409020002291",
+    key: "XXXX63/XXXX63_RTGF_010000_202409060000001_001_99999.bin",
+    origkey: "danben/test1.send",
     storedat: "2024-09-02-T05:59:31Z",
-    title: "ABCDEFG",
     updatedat: "2024-06-02-T05:59:31Z",
     value: "info",
   },
 };
 
-// ../sample/xml ディレクトリ内のすべてのファイルをリスト化して取得
-const sampleXmlDir = path.join(__dirname, "../sample/xml");
-let uploadS3FileList: string[] = [];
-
-// ファイルをリストに追加
-try {
-  uploadS3FileList = fs.readdirSync(sampleXmlDir).filter((file) => {
-    const fullPath = path.join(sampleXmlDir, file);
-    return fs.statSync(fullPath).isFile(); // ファイルかどうかを確認
-  });
-  console.log(`Files to upload: ${uploadS3FileList}`);
-} catch (error) {
-  console.error(`Failed to read directory: ${sampleXmlDir}`, error);
-}
+// just-compare, just-omit に置き換える予定
+// function sortObjectKeys(obj: any): any {
+//   if (obj !== null && typeof obj === 'object') {
+//     const sortedObj: any = {};
+//     Object.keys(obj).sort().forEach(key => {
+//       sortedObj[key] = obj[key];
+//     });
+//     return sortedObj;
+//   } else {
+//     return obj;
+//   }
+// }
 
 // ファイル名からprefixを取得する関数
 function extractPrefix(filename: string): string | null {
@@ -70,11 +69,11 @@ function extractPrefix(filename: string): string | null {
   return match ? match[1] : null;
 }
 
-// 拡張子が.xmlのファイルを作成
+// 拡張子が.binのファイルを作成
 function transformFileName(filename: string): string {
-  // 元のファイル名から拡張子を除去し、.xmlを付与
+  // 元のファイル名から拡張子を除去し、.binを付与
   const baseName = filename.replace(/\.[^/.]+$/, "");
-  return `${baseName}.xml`;
+  return `${baseName}.bin`;
 }
 
 export const handler = async (event: any): Promise<void> => {
@@ -98,13 +97,13 @@ export const handler = async (event: any): Promise<void> => {
     await codepipeline.putJobFailureResult(params).promise();
   };
 
+  const filenames = uploadS3FileList;
+  
   const uploadAndCheckFile = async (filename: string) => {
-    // ../sample/xml/aaa.sendからファイルを読み込み
-    const filePath = path.join(sampleXmlDir, filename);
+    const filePath = path.join("/tmp", `${filename}`);
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
+    // ファイル生成
+    fs.writeFileSync(filePath, `This is a test file: ${filename}`);
 
     // S3にアップロード    
     const s3Params = {
@@ -126,7 +125,7 @@ export const handler = async (event: any): Promise<void> => {
 
     const filenameWithoutExtension = path.basename(filename, path.extname(filename));
     const prefixDir = extractPrefix(filename);
-    const newFileName = transformFileName(filename);
+    const newFileNameBin = transformFileName(filename);
 
     while (retries < maxRetries) {
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -144,9 +143,15 @@ export const handler = async (event: any): Promise<void> => {
         
         // データ付き合わせ
         const storedItem = storedData[filenameWithoutExtension];
+        // const { storedat: _storedat, updatedat: _updatedat, ...storedItemToCompare } = storedItem;
+        // const { storedat: _dataStoredat, updatedat: _dataUpdatedat, ...dataItemToCompare } = data.Item;
         const storedItemToCompare = omit(storedItem, ['storedat', 'updatedat']);
         const dataItemToCompare = omit(data.Item, ['storedat', 'updatedat']);
-        const same = compare(storedItemToCompare, dataItemToCompare); // just-compareで比較
+        
+        const sortedStoredItem = sortObjectKeys(storedItemToCompare);
+        const sortedDataItem = sortObjectKeys(dataItemToCompare);
+
+        const same = JSON.stringify(sortedStoredItem) === JSON.stringify(sortedDataItem);
 
         if (same) {
           console.log(`Data for ${filenameWithoutExtension} matches stored data.`);
@@ -163,16 +168,16 @@ export const handler = async (event: any): Promise<void> => {
       // DEST_BUCKET_NAME_Aにファイルが存在するか確認
       const headParams = {
         Bucket: DEST_BUCKET_NAME_A,
-        Key: `${prefixDir}/${newFileName}`,
+        Key: `${prefixDir}/${newFileNameBin}`,
       };
 
       try {
         await s3.headObject(headParams).promise();
         foundDestBucketA = true;
-        console.log(`File ${newFileName} exists in ${DEST_BUCKET_NAME_A}`);
+        console.log(`File ${newFileNameBin} exists in ${DEST_BUCKET_NAME_A}`);
         break;
       } catch (err) {
-        console.error(`File ${newFileName} does not exist in ${DEST_BUCKET_NAME_A}, retrying...`);
+        console.error(`File ${newFileNameBin} does not exist in ${DEST_BUCKET_NAME_A}, retrying...`);
       }
 
       // REPLICATION_BUCKET_NAMEのdenbun ディレクトリにファイルが存在するか確認
@@ -204,7 +209,7 @@ export const handler = async (event: any): Promise<void> => {
       } catch (err) {
         console.error(`File ${newFileNameBin} does not exist in ${REPLICATION_BUCKET_NAME}/${prefixDir}, retrying...`);
       }
-      
+
       retries++;
     }
 
@@ -212,7 +217,7 @@ export const handler = async (event: any): Promise<void> => {
       throw new Error(`Failed to find ${filenameWithoutExtension} in DynamoDB after ${retries} retries.`);
     }
     if (!foundDestBucketA) {
-      throw new Error(`Failed to find ${newFileName} in ${DEST_BUCKET_NAME_A} after ${retries} retries.`);
+      throw new Error(`Failed to find ${newFileNameBin} in ${DEST_BUCKET_NAME_A} after ${retries} retries.`);
     }
     if (!foundRepliDenbunBucket) {
       throw new Error(`Failed to find ${filename} in ${REPLICATION_BUCKET_NAME}/denbun after ${retries} retries.`);
@@ -223,7 +228,7 @@ export const handler = async (event: any): Promise<void> => {
   };
 
   try {
-    await Promise.all(uploadS3FileList.map(uploadAndCheckFile));
+    await Promise.all(filenames.map(uploadAndCheckFile));
     await putJobSuccess();
     console.log(`Successfully putJobSuccess for ${jobId}`);
   } catch (error) {
@@ -231,10 +236,10 @@ export const handler = async (event: any): Promise<void> => {
     await putJobFailure((error as Error).message);
     console.log(`Failed as putJobFailure for ${jobId}`);
   } finally {
-    for (const filename of uploadS3FileList) {
+    for (const filename of filenames) {
       const filenameWithoutExtension = path.basename(filename, path.extname(filename));
       const prefixDir = extractPrefix(filename);
-      const newFileName = transformFileName(filename);
+      const newFileNameBin = transformFileName(filename);
 
       //S3bucketからファイルを削除し、ログを出力
       const deleteFileFromS3 = async (bucket: string, key: string) => {
@@ -249,8 +254,8 @@ export const handler = async (event: any): Promise<void> => {
 
       await deleteFileFromS3(BUCKET_NAME, `${S3_DIR}/${filename}`);
       await deleteFileFromS3(REPLICATION_BUCKET_NAME, `${S3_DIR}/${filename}`);
-      await deleteFileFromS3(REPLICATION_BUCKET_NAME, `${prefixDir}/${newFileName}`);
-      await deleteFileFromS3(DEST_BUCKET_NAME_A, `${prefixDir}/${newFileName}`);
+      await deleteFileFromS3(REPLICATION_BUCKET_NAME, `${prefixDir}/${newFileNameBin}`);
+      await deleteFileFromS3(DEST_BUCKET_NAME_A, `${prefixDir}/${newFileNameBin}`);
 
       // DynamoDBからファイル名を削除
       const deleteDynamoParams = {
