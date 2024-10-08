@@ -193,16 +193,16 @@ export const handler = async (event: any): Promise<void> => {
       // REPLICATION_BUCKET_NAMEの $PREFIX ディレクトリにファイルが存在するか確認
       const repliDenbunBucketHeadParams = {
         Bucket: REPLICATION_BUCKET_NAME,
-        Key: `${prefixDir}/${newFileNameBin}`,
+        Key: `${prefixDir}/${newFileName}`,
       };
 
       try {
         await s3.headObject(repliDenbunBucketHeadParams).promise();
         foundRepliPrefixBucket = true;
-        console.log(`File ${newFileNameBin} exists in ${REPLICATION_BUCKET_NAME}/${prefixDir}`);
+        console.log(`File ${newFileName} exists in ${REPLICATION_BUCKET_NAME}/${prefixDir}`);
         break;
       } catch (err) {
-        console.error(`File ${newFileNameBin} does not exist in ${REPLICATION_BUCKET_NAME}/${prefixDir}, retrying...`);
+        console.error(`File ${newFileName} does not exist in ${REPLICATION_BUCKET_NAME}/${prefixDir}, retrying...`);
       }
       
       retries++;
@@ -218,7 +218,7 @@ export const handler = async (event: any): Promise<void> => {
       throw new Error(`Failed to find ${filename} in ${REPLICATION_BUCKET_NAME}/denbun after ${retries} retries.`);
     }
     if (!foundRepliPrefixBucket) {
-      throw new Error(`Failed to find ${newFileNameBin} in ${REPLICATION_BUCKET_NAME}/${prefixDir} after ${retries} retries.`);
+      throw new Error(`Failed to find ${newFileName} in ${REPLICATION_BUCKET_NAME}/${prefixDir} after ${retries} retries.`);
     }
   };
 
