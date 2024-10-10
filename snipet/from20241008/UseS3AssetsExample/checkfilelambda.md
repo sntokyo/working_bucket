@@ -295,3 +295,210 @@ async function checkAllBuckets() {
 checkAllBuckets();
 ```
 
+```javascript
+// AWS S3バケット内のファイルが存在するか確認する関数
+async function checkFileInBucket(bucketName: string, key: string, description: string): Promise<boolean> {
+  const maxRetries = 12;
+  const delay = 5000; // 再試行間隔（ミリ秒）
+  let retries = 0;
+
+  while (retries < maxRetries) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    const headParams = {
+      Bucket: bucketName,
+      Key: key,
+    };
+
+    try {
+      await s3.headObject(headParams).promise();
+      console.log(`${description} exists in ${bucketName}`);
+      return true; // ファイルが存在する場合は true を返す
+    } catch (err) {
+      console.error(`${description} does not exist in ${bucketName}, retrying...`);
+    }
+
+    retries++;
+  }
+
+  return false; // 見つからなかった場合は false を返す
+}
+
+// DynamoDBでファイル名が登録されているか確認する関数
+async function checkFileInDynamoDB(filenameWithoutExtension: string): Promise<boolean> {
+  const maxRetries = 12;
+  const delay = 5000;
+  let retries = 0;
+  let foundDdb = false;
+
+  while (retries < maxRetries) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    const dynamoParams = {
+      TableName: TABLE_NAME,
+      Key: { pk: filenameWithoutExtension, sk: "info" },
+    };
+
+    const data = await docClient.get(dynamoParams).promise();
+    if (data.Item) {
+      console.log(`${filenameWithoutExtension} found in DynamoDB`);
+
+      // データ付き合わせ
+      const storedItem = storedData[filenameWithoutExtension];
+      const storedItemToCompare = omit(storedItem, ['storedat', 'updatedat']);
+      const dataItemToCompare = omit(data.Item, ['storedat', 'updatedat']);
+      const same = compare(storedItemToCompare, dataItemToCompare);
+
+      if (same) {
+        console.log(`Data for ${filenameWithoutExtension} matches stored data.`);
+        foundDdb = true;
+      } else {
+        throw new Error(`Data for ${filenameWithoutExtension} does not match stored data.`);
+      }
+
+      break;
+    } else {
+      console.log(`${filenameWithoutExtension} not found in DynamoDB, retrying...`);
+    }
+
+    retries++;
+  }
+
+  return foundDdb;
+}
+
+// メインのアップロード処理関数
+const uploadAndCheckFile = async (filename: string) => {
+  const filePath = path.join("/tmp", `${filename}`);
+
+  // ファイル生成
+  fs.writeFileSync(filePath, `This is a test file: ${filename}`);
+
+  // S3にアップロード
+  const s3Params = {
+    Bucket: BUCKET_NAME,
+    Key: `${S3_DIR}/${filename}`,
+    Body: fs.createReadStream(filePath),
+  };
+  await s3.upload(s3Params).promise();
+  console.log(`Successfully uploaded ${filename} to S3 directory ${S3_DIR}`);
+
+  const filenameWithoutExtension = path.basename(filename, path.extname(filename));
+  const prefixDir = extractPrefix(filename);
+  const newFileNameBin = transformFileName(filename);
+
+  // DynamoDBを確認
+  const foundDdb = await checkFileInDynamoDB(filenameWithoutExtension);
+
+  // DEST_BUCKET_NAME_Aを確認
+  const foundDestBucketA = await checkFileInBucket(DEST_BUCKET_NAME_A, `${prefixDir}/${newFileNameBin}`, `File ${newFileNameBin}`);
+
+  // REPLICATION_BUCKET_NAMEのdenbunを確認
+  const foundRepliDenbunBucket = await checkFileInBucket(REPLICATION_BUCKET_NAME, `denbun/${filename}`, `File ${filename}`);
+
+  // REPLICATION_BUCKET_NAMEのPREFIXを確認
+  const foundRepliPrefixBucket = await checkFileInBucket(REPLICATION_BUCKET_NAME, `${prefixDir}/${newFileNameBin}`, `File ${newFileNameBin}`);
+
+  if (!foundDdb) {
+    throw new Error(`Failed to find ${filenameWithoutExtension} in DynamoDB.`);
+  }
+  if (!foundDestBucketA) {
+    throw new Error(`Failed to find ${newFileNameBin} in ${DEST_BUCKET_NAME_A}.`);
+  }
+  if (!foundRepliDenbunBucket) {
+    throw new Error(`Failed to find ${filename} in ${REPLICATION_BUCKET_NAME}/denbun.`);
+  }
+  if (!foundRepliPrefixBucket) {
+    throw new Error(`Failed to find ${newFileNameBin} in ${REPLICATION_BUCKET_NAME}/${prefixDir}.`);
+  }
+};
+
+// Lambdaハンドラー関数
+export const handler = async (event: any): Promise<void> => {
+  const jobId = event["CodePipeline.job"].id;
+
+  // CodePipelineに成功を通知する関数
+  const putJobSuccess = async () => {
+    const params = { jobId: jobId };
+    await codepipeline.putJobSuccessResult(params).promise();
+  };
+
+  // CodePipelineに失敗を通知する関数
+  const putJobFailure = async (message: string) => {
+    const params = {
+      jobId: jobId,
+      failureDetails: {
+        message: JSON.stringify(message),
+        type: "JobFailed"
+      }
+    };
+    await codepipeline.putJobFailureResult(params).promise();
+  };
+
+  const filenames = uploadS3FileList;
+
+  try {
+    await Promise.all(filenames.map(uploadAndCheckFile));
+    await putJobSuccess();
+    console.log(`Successfully putJobSuccess for ${jobId}`);
+  } catch (error) {
+    console.error(`Test failed with error: ${(error as Error).message}`);
+    await putJobFailure((error as Error).message);
+    console.log(`Failed as putJobFailure for ${jobId}`);
+  }
+};
+```
+# 問題の分析と解決策
+NodejsFunction を使って XML ファイルを Lambda に含めるためには、Lambda のデプロイパッケージに XML ファイルを含める必要があります。NodejsFunction の bundling オプションを使って、XML ファイルをデプロイパッケージに含める方法を説明します。
+### aws-lambda-nodejs の NodejsFunction で XML ファイルをデプロイする例です：
+ここで重要な点は、bundlingオプションでファイルやディレクトリをLambdaのデプロイパッケージに含める設定を行っていることです。これにより、Lambda関数の実行環境内で必要なファイルが正しく配置されます。
+
+```javascript
+import * as path from 'path';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { Construct } from 'constructs';
+
+export class XmlLambdaStack extends Construct {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    new NodejsFunction(this, 'XmlLambda', {
+      entry: path.join(__dirname, 'lambda-handler.ts'),
+      runtime: lambda.Runtime.NODEJS_18_X,
+      
+      
+      bundling: { // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.BundlingOptions.html 
+        // XML ファイルを含むためのコマンド
+        commandHooks: { // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.ICommandHooks.html
+          beforeBundling(inputDir: string, outputDir: string): string[] {
+            return [
+              `echo "Input Directory: ${inputDir}"`,
+              `echo "Output Directory: ${outputDir}"`,
+              `mkdir -p ${outputDir}/integration-test/sample/xml`,
+              `cp -r ${inputDir}/integration-test/sample/xml ${outputDir}/integration-test/sample/xml`
+            ];
+          },
+          afterBundling(): string[] {
+            return [];
+          },
+          beforeInstall(): string[] {
+            return [];
+          }
+        }
+      }
+    });
+  }
+}
+```
+このコードでは、commandHooks の beforeBundling を使って XML ファイルをデプロイパッケージにコピーしています。
+この場合、XML ファイルは /var/task/integration-test/sample/xml に配置され、Lambda 内で利用可能になります。
+この方法で、デプロイパッケージに XML ファイルを含めて、Lambda 関数で利用することができます。
+
+
+## link
+https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.BundlingOptions.html
+https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.NodejsFunction.html
+https://stackoverflow.com/questions/75147158/how-can-i-bundle-additional-files-with-nodejsfunction
+### pythonだけど↓
+https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.aws_lambda_nodejs/BundlingOptions.html
