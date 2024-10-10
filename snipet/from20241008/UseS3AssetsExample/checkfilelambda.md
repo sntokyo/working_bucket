@@ -240,3 +240,58 @@ if (found) {
 }
 ```
 
+# ehile loop とtry~catchの関数化
+
+```javascript
+const maxRetries = 5;
+const delay = 1000; // 適切なディレイを設定
+
+// S3バケット内にファイルが存在するか確認する汎用関数
+async function checkFileInS3(bucketName, key) {
+  let retries = 0;
+
+  while (retries < maxRetries) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    const headParams = {
+      Bucket: bucketName,
+      Key: key,
+    };
+
+    try {
+      await s3.headObject(headParams).promise();
+      console.log(`File ${key} exists in ${bucketName}`);
+      return true; // ファイルが存在するので終了
+    } catch (err) {
+      console.error(`File ${key} does not exist in ${bucketName}, retrying...`);
+    }
+
+    retries++;
+  }
+
+  return false; // ファイルが見つからなかった場合
+}
+
+// 関数の外に変数を移動
+const prefixDir = 'your-prefix';  // 置き換えてください
+const newFileName = 'your-file-name';  // 置き換えてください
+const filename = 'your-filename';  // 置き換えてください
+const newFileNameBin = 'your-binary-filename';  // 置き換えてください
+
+// 各バケットをチェックする関数
+async function checkAllBuckets() {
+  const foundDestBucketA = await checkFileInS3(DEST_BUCKET_NAME_A, `${prefixDir}/${newFileName}`);
+  const foundRepliDenbunBucket = await checkFileInS3(REPLICATION_BUCKET_NAME, `denbun/${filename}`);
+  const foundRepliPrefixBucket = await checkFileInS3(REPLICATION_BUCKET_NAME, `${prefixDir}/${newFileNameBin}`);
+
+  if (foundDestBucketA && foundRepliDenbunBucket && foundRepliPrefixBucket) {
+    console.log('すべてのファイルが見つかりました');
+  } else {
+    console.log('いくつかのファイルが見つかりませんでした');
+  }
+}
+
+// 呼び出し
+checkAllBuckets();
+```
+
