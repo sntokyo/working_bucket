@@ -240,7 +240,7 @@ if (found) {
 }
 ```
 
-# ehile loop とtry~catchの関数化
+# while loop とtry~catchの関数化
 
 ```javascript
 const maxRetries = 5;
