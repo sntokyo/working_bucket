@@ -473,7 +473,7 @@ export class XmlLambdaStack extends Construct {
         commandHooks: { // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.ICommandHooks.html
           beforeBundling(inputDir: string, outputDir: string): string[] {
             return [
-              `echo "Input Directory: ${inputDir}"`,
+              `echo "Input Directory: ${inputDir}"`, // entry に指定したファイルが置かれているルートディレクトリ
               `echo "Output Directory: ${outputDir}"`,
               `mkdir -p ${outputDir}/integration-test/sample/xml`,
               `cp -r ${inputDir}/integration-test/sample/xml ${outputDir}/integration-test/sample/xml`
