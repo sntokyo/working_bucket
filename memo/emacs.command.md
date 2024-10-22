@@ -7,4 +7,4 @@
 | **カーソルの位置にファイルを挿入**   | C-x i | insert-file |
 | **バッファの内容をファイルに保存**   | C-x C-s                 | save-buffer                    |
 | **バッファの内容を指定したファイルに保存**| C-x C-w      | write-file                  |
-| **Emacsを終了**   | C-x C-cCDK によって静的ファイルが管理される            | save-buffer-kill-emacs    |
+| **Emacsを終了**   | C-x C-c       | save-buffer-kill-emacs    |
