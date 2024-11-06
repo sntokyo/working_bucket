@@ -8,3 +8,18 @@
 | **バッファの内容をファイルに保存**   | C-x C-s                 | save-buffer                    |
 | **バッファの内容を指定したファイルに保存**| C-x C-w      | write-file                  |
 | **Emacsを終了**   | C-x C-c       | save-buffer-kill-emacs    |
+
+直接ログインするとき
+```emacs
+/sudo::/path/to/directory
+```
+sshでログインするとき
+```emacs
+/ssh:user@hostname:/path/to/file
+/ssh:paoo@192.168.128.109:/
+/ssh:paoo@192.168.128.109:/home/paoo/
+/ssh:paoo@192.168.128.200:/home/paoo/
+/ssh:user@hostname|sudo:root@hostname:/path/to/file
+/ssh:paoo@192.168.128.109|sudo:root@192.168.128.109:/etc
+/ssh:paoo@192.168.128.120|sudo:root@192.168.128.120:/etc
+```
