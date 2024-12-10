@@ -36,3 +36,4 @@ key_counts = Counter(keys)
 # 結果を整形
 result = {key: count for key, count in key_counts.items()}
 result
+
