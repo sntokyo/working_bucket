@@ -1,0 +1,23 @@
+{
+  "name": "Amazon Linux 2023 DevContainer",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true
+      }
+    },
+    "extensions": [
+      "ms-python.python", // Python 開発用
+      "dbaeumer.vscode-eslint", // JavaScript/TypeScript 用
+      "esbenp.prettier-vscode" // コードフォーマッタ
+    ]
+  },
+  "postCreateCommand": "sudo dnf install -y git vim",
+  "remoteUser": "devuser",
+  "workspaceFolder": "/workspace"
+}
