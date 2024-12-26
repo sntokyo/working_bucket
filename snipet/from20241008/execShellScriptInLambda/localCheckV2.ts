@@ -41,4 +41,26 @@ exec(command, (error, stdout, stderr) => {
     return;
   }
   console.log(`stdout: ${stdout}`);
+
+
+  // 処理が終わったらログを表示して削除
+  const logDir = path.resolve('log'); // log ディレクトリのパスを解決
+  if (fs.existsSync(logDir)) {
+    // log ディレクトリ内の .log ファイルを読み込み
+    const logFiles = fs.readdirSync(logDir).filter(file => file.endsWith('.log'));
+
+    logFiles.forEach(file => {
+      const filePath = path.join(logDir, file);
+      const logContent = fs.readFileSync(filePath, 'utf-8'); // ファイル内容を読み込む
+      console.log(`Log content from ${file}:`);
+      console.log(logContent);
+    });
+
+    // log ディレクトリを削除
+    fs.rmdirSync(logDir, { recursive: true }); // ディレクトリごと削除
+    console.log(`Deleted log directory: ${logDir}`);
+  } else {
+    console.log(`No log directory found at: ${logDir}`);
+  }
+
 });
