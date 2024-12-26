@@ -1,5 +1,5 @@
 import { exec } from 'child_process';
-import fs from 'fs';
+import fs from 'fs/promises'; // promises API を使用
 import path from 'path';
 
 // 現在時刻を取得
@@ -34,7 +34,7 @@ const command = `./abc 3 03_12345_012345 ${formattedStartTime} ${formattedEndTim
 console.log(`Executing command: ${command}`);
 
 // コマンド実行
-exec(command, (error, stdout, stderr) => {
+exec(command, async (error, stdout, stderr) => {
   if (error) {
     console.error(`Error: ${error.message}`);
     return;
@@ -47,21 +47,16 @@ exec(command, (error, stdout, stderr) => {
 
   // 処理が終わったらログを表示して削除
   const logDir = path.resolve('log'); // log ディレクトリのパスを解決
-  if (fs.existsSync(logDir)) {
-    // log ディレクトリ内の .log ファイルを読み込み
-    const logFiles = fs.readdirSync(logDir).filter(file => file.endsWith('.log'));
-
-    logFiles.forEach(file => {
-      const filePath = path.join(logDir, file);
-      const logContent = fs.readFileSync(filePath, 'utf-8'); // ファイル内容を読み込む
-      console.log(`Log content from ${file}:`);
-      console.log(logContent);
-    });
-
+  try {
     // log ディレクトリを削除
-    fs.rmdirSync(logDir, { recursive: true }); // ディレクトリごと削除
+    await fs.rm(logDir, { recursive: true, force: true }); // 再帰的に削除
     console.log(`Deleted log directory: ${logDir}`);
-  } else {
-    console.log(`No log directory found at: ${logDir}`);
+  } catch (err) {
+    // 型アサーションを使用して err を Error 型として扱う
+    if (err instanceof Error) {
+      console.error(`Failed to process log directory: ${err.message}`);
+    } else {
+      console.error(`Unexpected error: ${err}`);
+    }
   }
 });
