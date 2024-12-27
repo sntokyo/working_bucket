@@ -7,8 +7,8 @@ const now = new Date();
 
 // 時間スロットを計算する関数
 function calculateTimeSlots(date: Date): { start: Date; end: Date } {
-  const minute = date.getMinutes();
-  const hour = date.getHours();
+  const minute = date.getUTCMinutes();
+  const hour = date.getUTCHours();
 
   let startHour = hour;
   let startMinute = 0;
